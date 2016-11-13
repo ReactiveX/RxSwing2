@@ -39,26 +39,26 @@ import org.mockito.InOrder;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
-import rx.Observable;
-import rx.Subscription;
-import rx.functions.Action0;
-import rx.functions.Action1;
-import rx.functions.Func1;
+import io.reactivex.Observable;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
 import rx.observables.SwingObservable;
-import rx.swing.sources.HierarchyEventSource.Predicate;
+import rx.swing.sources.HierarchyEventSource.Predicates;
 
 @RunWith(Parameterized.class)
 public class HierarchyBoundsEventSourceTest {
 
     private JPanel rootPanel;
     private JPanel parentPanel;
-    private Action1<HierarchyEvent> action;
-    private Action1<Throwable> error;
-    private Action0 complete;
-    private final Func1<Component, Observable<HierarchyEvent>> observableFactory;
+    private Consumer<HierarchyEvent> action;
+    private Consumer<Throwable> error;
+    private Action complete;
+    private final Function<Component, Observable<HierarchyEvent>> observableFactory;
     private JPanel childPanel;
     
-    public HierarchyBoundsEventSourceTest( Func1<Component, Observable<HierarchyEvent>> observableFactory ) {
+    public HierarchyBoundsEventSourceTest( Function<Component, Observable<HierarchyEvent>> observableFactory ) {
         this.observableFactory = observableFactory;
     }
     
@@ -79,29 +79,29 @@ public class HierarchyBoundsEventSourceTest {
         childPanel = Mockito.spy(new JPanel());
         parentPanel.add(childPanel);
         
-        action = mock(Action1.class);
-        error = mock(Action1.class);
-        complete = mock(Action0.class);
+        action = mock(Consumer.class);
+        error = mock(Consumer.class);
+        complete = mock(Action.class);
     }
     
     @Test
     public void testObservingAnscestorResizedHierarchyEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
             @Override
-            public void call() {
-                Subscription subscription = observableFactory.call(childPanel)
-                                                             .filter(Predicate.ANCESTOR_RESIZED)
+            public void run() throws Exception{
+                Disposable subscription = observableFactory.apply(childPanel)
+                                                             .filter(Predicates.ANCESTOR_RESIZED)
                                                              .subscribe(action, error, complete);
 
                 parentPanel.setSize(10, 10);
                 parentPanel.setLocation(10, 10); // verifies that ancestor moved events are ignored.
 
-                Mockito.verify(action).call(Matchers.argThat(hierarchyEventMatcher(childPanel, HierarchyEvent.ANCESTOR_RESIZED, parentPanel, rootPanel)));
-                Mockito.verify(error, Mockito.never()).call(Mockito.any(Throwable.class));
-                Mockito.verify(complete, Mockito.never()).call();
+                Mockito.verify(action).accept(Matchers.argThat(hierarchyEventMatcher(childPanel, HierarchyEvent.ANCESTOR_RESIZED, parentPanel, rootPanel)));
+                Mockito.verify(error, Mockito.never()).accept(Mockito.any(Throwable.class));
+                Mockito.verify(complete, Mockito.never()).run();
 
                 // Verifies that the underlying listener has been removed.
-                subscription.unsubscribe();
+                subscription.dispose();
                 Mockito.verify(childPanel).removeHierarchyBoundsListener(Mockito.any(HierarchyBoundsListener.class));
                 Assert.assertEquals(0, childPanel.getHierarchyListeners().length);
 
@@ -115,22 +115,22 @@ public class HierarchyBoundsEventSourceTest {
     
     @Test
     public void testObservingAnscestorMovedHierarchyEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
             @Override
-            public void call() {
-                Subscription subscription = observableFactory.call(childPanel)
-                                                             .filter(Predicate.ANCESTOR_MOVED)
+            public void run() throws Exception {
+                Disposable subscription = observableFactory.apply(childPanel)
+                                                             .filter(Predicates.ANCESTOR_MOVED)
                                                              .subscribe(action, error, complete);
 
                 parentPanel.setSize(10, 10); // verifies that ancestor resized events are ignored.
                 parentPanel.setLocation(10, 10);
 
-                Mockito.verify(action).call(Matchers.argThat(hierarchyEventMatcher(childPanel, HierarchyEvent.ANCESTOR_MOVED, parentPanel, rootPanel)));
-                Mockito.verify(error, Mockito.never()).call(Mockito.any(Throwable.class));
-                Mockito.verify(complete, Mockito.never()).call();
+                Mockito.verify(action).accept(Matchers.argThat(hierarchyEventMatcher(childPanel, HierarchyEvent.ANCESTOR_MOVED, parentPanel, rootPanel)));
+                Mockito.verify(error, Mockito.never()).accept(Mockito.any(Throwable.class));
+                Mockito.verify(complete, Mockito.never()).run();
 
                 // Verifies that the underlying listener has been removed.
-                subscription.unsubscribe();
+                subscription.dispose();
                 Mockito.verify(childPanel).removeHierarchyBoundsListener(Mockito.any(HierarchyBoundsListener.class));
                 Assert.assertEquals(0, childPanel.getHierarchyListeners().length);
 
@@ -144,10 +144,10 @@ public class HierarchyBoundsEventSourceTest {
     
     @Test
     public void testObservingAllHierarchyBoundsEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
             @Override
-            public void call() {
-                Subscription subscription = observableFactory.call(childPanel)
+            public void run()  throws Exception{
+                Disposable subscription = observableFactory.apply(childPanel)
                                                              .subscribe(action, error, complete);
                 
                 InOrder inOrder = inOrder(action);
@@ -155,14 +155,14 @@ public class HierarchyBoundsEventSourceTest {
                 parentPanel.setSize(10, 10);
                 parentPanel.setLocation(10, 10);
 
-                inOrder.verify(action).call(Matchers.argThat(hierarchyEventMatcher(childPanel, HierarchyEvent.ANCESTOR_RESIZED, parentPanel, rootPanel)));
-                inOrder.verify(action).call(Matchers.argThat(hierarchyEventMatcher(childPanel, HierarchyEvent.ANCESTOR_MOVED, parentPanel, rootPanel)));
+                inOrder.verify(action).accept(Matchers.argThat(hierarchyEventMatcher(childPanel, HierarchyEvent.ANCESTOR_RESIZED, parentPanel, rootPanel)));
+                inOrder.verify(action).accept(Matchers.argThat(hierarchyEventMatcher(childPanel, HierarchyEvent.ANCESTOR_MOVED, parentPanel, rootPanel)));
                 inOrder.verifyNoMoreInteractions();
-                Mockito.verify(error, Mockito.never()).call(Mockito.any(Throwable.class));
-                Mockito.verify(complete, Mockito.never()).call();
+                Mockito.verify(error, Mockito.never()).accept(Mockito.any(Throwable.class));
+                Mockito.verify(complete, Mockito.never()).run();
 
                 // Verifies that the underlying listener has been removed.
-                subscription.unsubscribe();
+                subscription.dispose();
                 Mockito.verify(childPanel).removeHierarchyBoundsListener(Mockito.any(HierarchyBoundsListener.class));
                 Assert.assertEquals(0, childPanel.getHierarchyListeners().length);
 
@@ -197,21 +197,21 @@ public class HierarchyBoundsEventSourceTest {
         };
     }
     
-    private static Func1<Component, Observable<HierarchyEvent>> observablefromEventSource()
+    private static Function<Component, Observable<HierarchyEvent>> observablefromEventSource()
     {
-        return new Func1<Component, Observable<HierarchyEvent>>() {
+        return new Function<Component, Observable<HierarchyEvent>>() {
             @Override
-            public Observable<HierarchyEvent> call(Component component) {
+            public Observable<HierarchyEvent> apply(Component component) {
                 return HierarchyEventSource.fromHierarchyBoundsEventsOf(component);
             }
         };
     }
     
-    private static Func1<Component, Observable<HierarchyEvent>> observablefromSwingObservable()
+    private static Function<Component, Observable<HierarchyEvent>> observablefromSwingObservable()
     {
-        return new Func1<Component, Observable<HierarchyEvent>>() {
+        return new Function<Component, Observable<HierarchyEvent>>() {
             @Override
-            public Observable<HierarchyEvent> call(Component component) {
+            public Observable<HierarchyEvent> apply(Component component) {
                 return SwingObservable.fromHierachyBoundsEvents(component);
             }
         };

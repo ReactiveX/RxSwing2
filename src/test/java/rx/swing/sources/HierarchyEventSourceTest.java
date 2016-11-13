@@ -37,11 +37,11 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
-import rx.Observable;
-import rx.Subscription;
-import rx.functions.Action0;
-import rx.functions.Action1;
-import rx.functions.Func1;
+import io.reactivex.Observable;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
 import rx.observables.SwingObservable;
 
 @RunWith(Parameterized.class)
@@ -49,12 +49,12 @@ public class HierarchyEventSourceTest {
 
     private JPanel rootPanel;
     private JPanel parentPanel;
-    private Action1<HierarchyEvent> action;
-    private Action1<Throwable> error;
-    private Action0 complete;
-    private final Func1<Component, Observable<HierarchyEvent>> observableFactory;
+    private Consumer<HierarchyEvent> action;
+    private Consumer<Throwable> error;
+    private Action complete;
+    private final Function<Component, Observable<HierarchyEvent>> observableFactory;
     
-    public HierarchyEventSourceTest( Func1<Component, Observable<HierarchyEvent>> observableFactory ) {
+    public HierarchyEventSourceTest( Function<Component, Observable<HierarchyEvent>> observableFactory ) {
         this.observableFactory = observableFactory;
     }
     
@@ -70,30 +70,30 @@ public class HierarchyEventSourceTest {
         rootPanel = new JPanel();
         parentPanel = new JPanel();
         
-        action = mock(Action1.class);
-        error = mock(Action1.class);
-        complete = mock(Action0.class);
+        action = mock(Consumer.class);
+        error = mock(Consumer.class);
+        complete = mock(Action.class);
     }
     
     @Test
     public void testObservingHierarchyEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
             @Override
-            public void call() {
+            public void run()  throws Exception{
                 JPanel childPanel = Mockito.spy(new JPanel());
                 parentPanel.add(childPanel);
 
-                Subscription subscription = observableFactory.call(childPanel)
+                Disposable subscription = observableFactory.apply(childPanel)
                                                              .subscribe(action, error, complete);
 
                 rootPanel.add(parentPanel);
 
-                Mockito.verify(action).call(Matchers.argThat(hierarchyEventMatcher(childPanel, HierarchyEvent.PARENT_CHANGED, parentPanel, rootPanel)));
-                Mockito.verify(error, Mockito.never()).call(Mockito.any(Throwable.class));
-                Mockito.verify(complete, Mockito.never()).call();
+                Mockito.verify(action).accept(Matchers.argThat(hierarchyEventMatcher(childPanel, HierarchyEvent.PARENT_CHANGED, parentPanel, rootPanel)));
+                Mockito.verify(error, Mockito.never()).accept(Mockito.any(Throwable.class));
+                Mockito.verify(complete, Mockito.never()).run();
 
                 // Verifies that the underlying listener has been removed.
-                subscription.unsubscribe();
+                subscription.dispose();
                 Mockito.verify(childPanel).removeHierarchyListener(Mockito.any(HierarchyListener.class));
                 Assert.assertEquals(0, childPanel.getHierarchyListeners().length);
 
@@ -127,21 +127,21 @@ public class HierarchyEventSourceTest {
         };
     }
     
-    private static Func1<Component, Observable<HierarchyEvent>> ObservablefromEventSource()
+    private static Function<Component, Observable<HierarchyEvent>> ObservablefromEventSource()
     {
-        return new Func1<Component, Observable<HierarchyEvent>>() {
+        return new Function<Component, Observable<HierarchyEvent>>() {
             @Override
-            public Observable<HierarchyEvent> call(Component component) {
+            public Observable<HierarchyEvent> apply(Component component) {
                 return HierarchyEventSource.fromHierarchyEventsOf(component);
             }
         };
     }
     
-    private static Func1<Component, Observable<HierarchyEvent>> ObservablefromSwingObservable()
+    private static Function<Component, Observable<HierarchyEvent>> ObservablefromSwingObservable()
     {
-        return new Func1<Component, Observable<HierarchyEvent>>() {
+        return new Function<Component, Observable<HierarchyEvent>>() {
             @Override
-            public Observable<HierarchyEvent> call(Component component) {
+            public Observable<HierarchyEvent> apply(Component component) {
                 return SwingObservable.fromHierachyEvents(component);
             }
         };

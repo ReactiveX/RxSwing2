@@ -15,20 +15,21 @@
  */
 package rx.swing.sources;
 
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
-import rx.functions.Action0;
-import rx.schedulers.SwingScheduler;
-import rx.subscriptions.Subscriptions;
-
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
-public enum ChangeEventSource { ; // no instances
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.disposables.Disposables;
+import rx.schedulers.SwingScheduler;
+
+public enum ChangeEventSource {
+	; // no instances
 
 	private static final String ADD_CHANGE_LISTENER_METHOD_NAME = "addChangeListener";
 	private static final String REMOVE_CHANGE_LISTENER_METHOD_NAME = "removeChangeListener";
@@ -36,25 +37,26 @@ public enum ChangeEventSource { ; // no instances
 	/**
 	 * Creates an observable corresponding to change events (e.g. progressbar value changes).
 	 *
-	 * Due to the lack of a common interface in Java (up to at least version 8), the implementation
-	 * is generic and uses internally reflection to add and remove it's {@link ChangeListener}'s.
-	 * The contract is therefor that the given parameter object MUST have the typical two public methods "addChangeListener"
-	 * (like {@link javax.swing.JProgressBar#addChangeListener(ChangeListener)}) and "removeChangeListener"
-	 * (like {@link javax.swing.JProgressBar#removeChangeListener(ChangeListener)}).
+	 * Due to the lack of a common interface in Java (up to at least version 8), the implementation is generic and uses internally reflection to add and remove
+	 * it's {@link ChangeListener}'s. The contract is therefor that the given parameter object MUST have the typical two public methods "addChangeListener"
+	 * (like {@link javax.swing.JProgressBar#addChangeListener(ChangeListener)}) and "removeChangeListener" (like
+	 * {@link javax.swing.JProgressBar#removeChangeListener(ChangeListener)}).
 	 *
-	 * For more info to change listeners and events see <a href="https://docs.oracle.com/javase/tutorial/uiswing/events/changelistener.html">
-	 * How to Write a Change Listener</a>.
+	 * For more info to change listeners and events see <a href="https://docs.oracle.com/javase/tutorial/uiswing/events/changelistener.html"> How to Write a
+	 * Change Listener</a>.
 	 *
 	 * @param changeEventSource
-	 * 		The object to register the observable for.
+	 *            The object to register the observable for.
 	 * @return Observable emitting the change events.
-	 * @throws IllegalArgumentException if the given parameter object has not the needed signature
+	 * @throws IllegalArgumentException
+	 *             if the given parameter object has not the needed signature
 	 */
 	public static Observable<ChangeEvent> fromChangeEventsOf(final Object changeEventSource) {
 		checkHasChangeListenerSupport(changeEventSource);
-		return Observable.create(new OnSubscribe<ChangeEvent>() {
+		return Observable.create(new ObservableOnSubscribe<ChangeEvent>() {
+
 			@Override
-			public void call(final Subscriber<? super ChangeEvent> subscriber) {
+			public void subscribe(final ObservableEmitter<ChangeEvent> subscriber) throws Exception {
 				final ChangeListener listener = new ChangeListener() {
 					@Override
 					public void stateChanged(final ChangeEvent event) {
@@ -62,15 +64,14 @@ public enum ChangeEventSource { ; // no instances
 					}
 				};
 				addChangeListener(changeEventSource, listener);
-				subscriber.add(Subscriptions.create(new Action0() {
-					@Override
-					public void call() {
-						removeChangeListener(changeEventSource, listener);
-					}
+				subscriber.setDisposable(Disposables.fromAction(() -> {
+
+					removeChangeListener(changeEventSource, listener);
+
 				}));
+
 			}
-		}).subscribeOn(SwingScheduler.getInstance())
-				.unsubscribeOn(SwingScheduler.getInstance());
+		}).subscribeOn(SwingScheduler.getInstance()).unsubscribeOn(SwingScheduler.getInstance());
 	}
 
 	private static void checkHasChangeListenerSupport(Object object) {
@@ -82,12 +83,12 @@ public enum ChangeEventSource { ; // no instances
 		try {
 			Method method = object.getClass().getMethod(methodName, parameterTypes);
 			if (!Modifier.isPublic(method.getModifiers())) {
-				throw new IllegalArgumentException(
-						"Class '" + object.getClass().getName() + "' has not the expected signature to support change listeners in "
-								+ ChangeEventSource.class.getName() + ". " + methodName + " is not accessible.");
+				throw new IllegalArgumentException("Class '" + object.getClass().getName() + "' has not the expected signature to support change listeners in "
+						+ ChangeEventSource.class.getName() + ". " + methodName + " is not accessible.");
 			}
 		} catch (NoSuchMethodException e) {
-			throw new IllegalArgumentException("Class '" + object.getClass().getName() + "' has not the expected signature to support change listeners in " + ChangeEventSource.class.getName(), e);
+			throw new IllegalArgumentException("Class '" + object.getClass().getName() + "' has not the expected signature to support change listeners in "
+					+ ChangeEventSource.class.getName(), e);
 		}
 	}
 
@@ -99,17 +100,17 @@ public enum ChangeEventSource { ; // no instances
 		callChangeListenerMethodViaReflection(object, REMOVE_CHANGE_LISTENER_METHOD_NAME, changeListener);
 	}
 
-	private static void callChangeListenerMethodViaReflection(Object object,
-	                                                          String methodName,
-	                                                          ChangeListener changeListener) {
+	private static void callChangeListenerMethodViaReflection(Object object, String methodName, ChangeListener changeListener) {
 		try {
 			object.getClass().getMethod(methodName, ChangeListener.class).invoke(object, changeListener);
 		} catch (IllegalAccessException e) {
-			throw new IllegalArgumentException("Call of " + methodName + " via reflection failed. Does class " + object.getClass().getName() + " support change listeners?", e);
+			throw new IllegalArgumentException(
+					"Call of " + methodName + " via reflection failed. Does class " + object.getClass().getName() + " support change listeners?", e);
 		} catch (InvocationTargetException e) {
 			throw new IllegalArgumentException("Call of " + methodName + " via reflection failed.", e);
 		} catch (NoSuchMethodException e) {
-			throw new IllegalArgumentException("Call of " + methodName + " via reflection failed. Does class " + object.getClass().getName() + " support change listeners?", e);
+			throw new IllegalArgumentException(
+					"Call of " + methodName + " via reflection failed. Does class " + object.getClass().getName() + " support change listeners?", e);
 		}
 	}
 }

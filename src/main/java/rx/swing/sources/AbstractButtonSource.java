@@ -15,16 +15,16 @@
  */
 package rx.swing.sources;
 
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
-import rx.functions.Action0;
-import rx.schedulers.SwingScheduler;
-import rx.subscriptions.Subscriptions;
-
-import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+
+import javax.swing.AbstractButton;
+
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.disposables.Disposables;
+import rx.schedulers.SwingScheduler;
 
 public enum AbstractButtonSource { ; // no instances
 
@@ -32,23 +32,26 @@ public enum AbstractButtonSource { ; // no instances
      * @see rx.observables.SwingObservable#fromButtonAction
      */
     public static Observable<ActionEvent> fromActionOf(final AbstractButton button) {
-        return Observable.create(new OnSubscribe<ActionEvent>() {
-            @Override
-            public void call(final Subscriber<? super ActionEvent> subscriber) {
-                final ActionListener listener = new ActionListener() {
-                    @Override
-                    public void actionPerformed(ActionEvent e) {
-                        subscriber.onNext(e);
-                    }
-                };
-                button.addActionListener(listener);
-                subscriber.add(Subscriptions.create(new Action0() {
-                    @Override
-                    public void call() {
-                        button.removeActionListener(listener);
-                    }
-                }));
-            }
+    	
+        return Observable.create(new ObservableOnSubscribe<ActionEvent>() {
+          
+
+			@Override
+			public void subscribe(final ObservableEmitter<ActionEvent> subscriber) throws Exception {
+				 final ActionListener listener = new ActionListener() {
+	                    @Override
+	                    public void actionPerformed(ActionEvent e) {
+	                        subscriber.onNext(e);
+	                    }
+	                };
+	                button.addActionListener(listener);
+	                subscriber.setDisposable(Disposables.fromAction(() -> {
+	                	button.removeActionListener(listener);
+	                }));
+	                
+	               
+				
+			}
         }).subscribeOn(SwingScheduler.getInstance())
                 .unsubscribeOn(SwingScheduler.getInstance());
     }

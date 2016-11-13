@@ -15,34 +15,34 @@
  */
 package rx.swing.sources;
 
-import java.awt.event.ActionEvent;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import org.junit.Test;
-import org.mockito.Matchers;
+import java.awt.event.ActionEvent;
 
 import javax.swing.AbstractButton;
 
-import rx.Subscription;
-import rx.functions.Action0;
-import rx.functions.Action1;
+import org.junit.Test;
+import org.mockito.Matchers;
+
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
 
 public class AbstractButtonSourceTest {
     @Test
     public void testObservingActionEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call() {
+            public void run() throws Exception {
                 @SuppressWarnings("unchecked")
-                Action1<ActionEvent> action = mock(Action1.class);
+                Consumer<ActionEvent> action = mock(Consumer.class);
                 @SuppressWarnings("unchecked")
-                Action1<Throwable> error = mock(Action1.class);
-                Action0 complete = mock(Action0.class);
+                Consumer<Throwable> error = mock(Consumer.class);
+                Action complete = mock(Action.class);
 
                 final ActionEvent event = new ActionEvent(this, 1, "command");
 
@@ -54,24 +54,24 @@ public class AbstractButtonSourceTest {
                 }
 
                 TestButton button = new TestButton();
-                Subscription sub = AbstractButtonSource.fromActionOf(button).subscribe(action,
+                Disposable sub = AbstractButtonSource.fromActionOf(button).subscribe(action,
                         error, complete);
 
-                verify(action, never()).call(Matchers.<ActionEvent> any());
-                verify(error, never()).call(Matchers.<Throwable> any());
-                verify(complete, never()).call();
+                verify(action, never()).accept(Matchers.<ActionEvent> any());
+                verify(error, never()).accept(Matchers.<Throwable> any());
+                verify(complete, never()).run();
 
                 button.testAction();
-                verify(action, times(1)).call(Matchers.<ActionEvent> any());
+                verify(action, times(1)).accept(Matchers.<ActionEvent> any());
 
                 button.testAction();
-                verify(action, times(2)).call(Matchers.<ActionEvent> any());
+                verify(action, times(2)).accept(Matchers.<ActionEvent> any());
 
-                sub.unsubscribe();
+                sub.dispose();
                 button.testAction();
-                verify(action, times(2)).call(Matchers.<ActionEvent> any());
-                verify(error, never()).call(Matchers.<Throwable> any());
-                verify(complete, never()).call();
+                verify(action, times(2)).accept(Matchers.<ActionEvent> any());
+                verify(error, never()).accept(Matchers.<Throwable> any());
+                verify(complete, never()).run();
             }
 
         }).awaitTerminal();

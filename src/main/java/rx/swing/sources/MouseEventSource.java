@@ -15,132 +15,124 @@
  */
 package rx.swing.sources;
 
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
-import rx.functions.Action0;
-import rx.functions.Func2;
-import rx.schedulers.SwingScheduler;
-import rx.subscriptions.Subscriptions;
+import java.awt.Component;
+import java.awt.Point;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
 
-import java.awt.*;
-import java.awt.event.*;
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.disposables.Disposables;
+import rx.schedulers.SwingScheduler;
 
 public enum MouseEventSource {
-    ; // no instances
+	; // no instances
 
-    /**
-     * @see rx.observables.SwingObservable#fromMouseEvents
-     */
-    public static Observable<MouseEvent> fromMouseEventsOf(final Component component) {
-        return Observable.create(new OnSubscribe<MouseEvent>() {
-            @Override
-            public void call(final Subscriber<? super MouseEvent> subscriber) {
-                final MouseListener listener = new MouseListener() {
-                    @Override
-                    public void mouseClicked(MouseEvent event) {
-                        subscriber.onNext(event);
-                    }
+	/**
+	 * @see rx.observables.SwingObservable#fromMouseEvents
+	 */
+	public static Observable<MouseEvent> fromMouseEventsOf(final Component component) {
+		return Observable.create(new ObservableOnSubscribe<MouseEvent>() {
+			@Override
+			public void subscribe(final ObservableEmitter<MouseEvent> subscriber) {
+				final MouseListener listener = new MouseListener() {
+					@Override
+					public void mouseClicked(MouseEvent event) {
+						subscriber.onNext(event);
+					}
 
-                    @Override
-                    public void mousePressed(MouseEvent event) {
-                        subscriber.onNext(event);
-                    }
+					@Override
+					public void mousePressed(MouseEvent event) {
+						subscriber.onNext(event);
+					}
 
-                    @Override
-                    public void mouseReleased(MouseEvent event) {
-                        subscriber.onNext(event);
-                    }
+					@Override
+					public void mouseReleased(MouseEvent event) {
+						subscriber.onNext(event);
+					}
 
-                    @Override
-                    public void mouseEntered(MouseEvent event) {
-                        subscriber.onNext(event);
-                    }
+					@Override
+					public void mouseEntered(MouseEvent event) {
+						subscriber.onNext(event);
+					}
 
-                    @Override
-                    public void mouseExited(MouseEvent event) {
-                        subscriber.onNext(event);
-                    }
-                };
-                component.addMouseListener(listener);
+					@Override
+					public void mouseExited(MouseEvent event) {
+						subscriber.onNext(event);
+					}
+				};
+				component.addMouseListener(listener);
 
-                subscriber.add(Subscriptions.create(new Action0() {
-                    @Override
-                    public void call() {
-                        component.removeMouseListener(listener);
-                    }
-                }));
-            }
-        }).subscribeOn(SwingScheduler.getInstance())
-                .unsubscribeOn(SwingScheduler.getInstance());
-    }
+				subscriber.setDisposable(Disposables.fromAction(() -> {
 
-    /**
-     * @see rx.observables.SwingObservable#fromMouseMotionEvents
-     */
-    public static Observable<MouseEvent> fromMouseMotionEventsOf(final Component component) {
-        return Observable.create(new OnSubscribe<MouseEvent>() {
-            @Override
-            public void call(final Subscriber<? super MouseEvent> subscriber) {
-                final MouseMotionListener listener = new MouseMotionListener() {
-                    @Override
-                    public void mouseDragged(MouseEvent event) {
-                        subscriber.onNext(event);
-                    }
+					component.removeMouseListener(listener);
 
-                    @Override
-                    public void mouseMoved(MouseEvent event) {
-                        subscriber.onNext(event);
-                    }
-                };
-                component.addMouseMotionListener(listener);
+				}));
+			}
+		}).subscribeOn(SwingScheduler.getInstance()).unsubscribeOn(SwingScheduler.getInstance());
+	}
 
-                subscriber.add(Subscriptions.create(new Action0() {
-                    @Override
-                    public void call() {
-                        component.removeMouseMotionListener(listener);
-                    }
-                }));
-            }
-        }).subscribeOn(SwingScheduler.getInstance())
-                .unsubscribeOn(SwingScheduler.getInstance());
-    }
+	/**
+	 * @see rx.observables.SwingObservable#fromMouseMotionEvents
+	 */
+	public static Observable<MouseEvent> fromMouseMotionEventsOf(final Component component) {
+		return Observable.create(new ObservableOnSubscribe<MouseEvent>() {
+			@Override
+			public void subscribe(final ObservableEmitter<MouseEvent> subscriber) {
+				final MouseMotionListener listener = new MouseMotionListener() {
+					@Override
+					public void mouseDragged(MouseEvent event) {
+						subscriber.onNext(event);
+					}
 
-    public static Observable<MouseWheelEvent> fromMouseWheelEvents(final Component component){
-        return Observable.create(new OnSubscribe<MouseWheelEvent>() {
-            @Override
-            public void call(final Subscriber<? super MouseWheelEvent> subscriber) {
-                final MouseWheelListener listener = new MouseWheelListener() {
-                    @Override
-                    public void mouseWheelMoved(MouseWheelEvent event) {
-                        subscriber.onNext(event);
-                    }
-                };
-                component.addMouseWheelListener(listener);
+					@Override
+					public void mouseMoved(MouseEvent event) {
+						subscriber.onNext(event);
+					}
+				};
+				component.addMouseMotionListener(listener);
 
-                subscriber.add(Subscriptions.create(new Action0() {
-                    @Override
-                    public void call() {
-                        component.removeMouseWheelListener(listener);
-                    }
-                }));
-            }
-        }).subscribeOn(SwingScheduler.getInstance())
-                .unsubscribeOn(SwingScheduler.getInstance());
-    }
+				subscriber.setDisposable(Disposables.fromAction(() -> {
 
-    /**
-     * @see rx.observables.SwingObservable#fromRelativeMouseMotion
-     */
-    public static Observable<Point> fromRelativeMouseMotion(final Component component) {
-        final Observable<MouseEvent> events = fromMouseMotionEventsOf(component);
-        return Observable.zip(events, events.skip(1), new Func2<MouseEvent, MouseEvent, Point>() {
-            @Override
-            public Point call(MouseEvent ev1, MouseEvent ev2) {
-                return new Point(ev2.getX() - ev1.getX(), ev2.getY() - ev1.getY());
-            }
-        }).subscribeOn(SwingScheduler.getInstance())
-                .unsubscribeOn(SwingScheduler.getInstance());
-    }
+					component.removeMouseMotionListener(listener);
+
+				}));
+			}
+		}).subscribeOn(SwingScheduler.getInstance()).unsubscribeOn(SwingScheduler.getInstance());
+	}
+
+	public static Observable<MouseWheelEvent> fromMouseWheelEvents(final Component component) {
+		return Observable.create(new ObservableOnSubscribe<MouseWheelEvent>() {
+			@Override
+			public void subscribe(final ObservableEmitter<MouseWheelEvent> subscriber) {
+				final MouseWheelListener listener = new MouseWheelListener() {
+					@Override
+					public void mouseWheelMoved(MouseWheelEvent event) {
+						subscriber.onNext(event);
+					}
+				};
+				component.addMouseWheelListener(listener);
+
+				subscriber.setDisposable(Disposables.fromAction(() -> {
+
+					component.removeMouseWheelListener(listener);
+
+				}));
+			}
+		}).subscribeOn(SwingScheduler.getInstance()).unsubscribeOn(SwingScheduler.getInstance());
+	}
+
+	/**
+	 * @see rx.observables.SwingObservable#fromRelativeMouseMotion
+	 */
+	public static Observable<Point> fromRelativeMouseMotion(final Component component) {
+		final Observable<MouseEvent> events = fromMouseMotionEventsOf(component);
+		return Observable.zip(events, events.skip(1), (ev1, ev2) -> new Point(ev2.getX() - ev1.getX(), ev2.getY() - ev1.getY()))
+				.subscribeOn(SwingScheduler.getInstance()).unsubscribeOn(SwingScheduler.getInstance());
+	}
 
 }

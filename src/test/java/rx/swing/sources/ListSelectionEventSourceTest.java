@@ -15,25 +15,30 @@
  */
 package rx.swing.sources;
 
-import org.junit.Test;
-import rx.Subscription;
-import rx.functions.Action0;
-import rx.observers.TestSubscriber;
 
-import javax.swing.*;
+
+import javax.swing.DefaultListSelectionModel;
+import javax.swing.JList;
+import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
 import javax.swing.event.ListSelectionEvent;
 
-import static junit.framework.Assert.assertEquals;
+import org.junit.Assert;
+import org.junit.Test;
+
+import io.reactivex.functions.Action;
+import io.reactivex.observers.TestObserver;
+
 
 public class ListSelectionEventSourceTest {
 
     @Test
     public void jtableRowSelectionObservingSelectionEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call() {
-                TestSubscriber<ListSelectionEvent> testSubscriber = TestSubscriber.create();
+            public void run() throws Exception {
+            	TestObserver<ListSelectionEvent> testSubscriber = TestObserver.create();
 
                 JTable table = createJTable();
                 ListSelectionEventSource
@@ -54,7 +59,7 @@ public class ListSelectionEventSourceTest {
                                 0 /* start of region with selection changes */,
                                 0 /* end of region with selection changes */,
                                 false),
-                        testSubscriber.getOnNextEvents().get(0));
+                        testSubscriber.values().get(0));
 
                 table.getSelectionModel().setSelectionInterval(2, 2);
 
@@ -67,18 +72,18 @@ public class ListSelectionEventSourceTest {
                                 0 /* start of region with selection changes */,
                                 2 /* end of region with selection changes */,
                                 false),
-                        testSubscriber.getOnNextEvents().get(1));
+                        testSubscriber.values().get(1));
             }
         }).awaitTerminal();
     }
 
     @Test
     public void jtableColumnSelectionObservingSelectionEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call() {
-                TestSubscriber<ListSelectionEvent> testSubscriber = TestSubscriber.create();
+            public void run() {
+                TestObserver<ListSelectionEvent> testSubscriber = TestObserver.create();
 
                 JTable table = createJTable();
                 table.getColumnModel().getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
@@ -101,7 +106,7 @@ public class ListSelectionEventSourceTest {
                                 0 /* start of region with selection changes */,
                                 0 /* end of region with selection changes */,
                                 false),
-                        testSubscriber.getOnNextEvents().get(0));
+                        testSubscriber.values().get(0));
 
                 table.getColumnModel().getSelectionModel().setSelectionInterval(2, 2);
 
@@ -114,7 +119,7 @@ public class ListSelectionEventSourceTest {
                                 0 /* start of region with selection changes */,
                                 2 /* end of region with selection changes */,
                                 false),
-                        testSubscriber.getOnNextEvents().get(1));
+                        testSubscriber.values().get(1));
 
             }
         }).awaitTerminal();
@@ -122,11 +127,11 @@ public class ListSelectionEventSourceTest {
 
     @Test
     public void jlistSelectionObservingSelectionEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call() {
-                TestSubscriber<ListSelectionEvent> testSubscriber = TestSubscriber.create();
+            public void run() throws Exception {
+                TestObserver<ListSelectionEvent> testSubscriber = TestObserver.create();
 
                 JList<String> jList = new JList<String>(new String[]{"a", "b", "c", "d", "e", "f"});
                 jList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -149,7 +154,7 @@ public class ListSelectionEventSourceTest {
                                 0 /* start of region with selection changes */,
                                 0 /* end of region with selection changes */,
                                 false),
-                        testSubscriber.getOnNextEvents().get(0));
+                        testSubscriber.values().get(0));
 
                 jList.getSelectionModel().setSelectionInterval(2, 2);
 
@@ -162,39 +167,39 @@ public class ListSelectionEventSourceTest {
                                 0 /* start of region with selection changes */,
                                 2 /* end of region with selection changes */,
                                 false),
-                        testSubscriber.getOnNextEvents().get(1));
+                        testSubscriber.values().get(1));
             }
         }).awaitTerminal();
     }
 
     @Test
     public void jtableRowSelectionUnsubscribeRemovesRowSelectionListener() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call() {
-                TestSubscriber<ListSelectionEvent> testSubscriber = TestSubscriber.create();
+            public void run() throws Exception{
+                TestObserver<ListSelectionEvent> testSubscriber = TestObserver.create();
 
                 JTable table = createJTable();
                 int numberOfListenersBefore = getNumberOfRowListSelectionListeners(table);
 
-                Subscription sub = ListSelectionEventSource
+                ListSelectionEventSource
                         .fromListSelectionEventsOf(table.getSelectionModel())
                         .subscribe(testSubscriber);
 
                 testSubscriber.assertNoErrors();
                 testSubscriber.assertNoValues();
 
-                sub.unsubscribe();
+                testSubscriber.dispose();
 
-                testSubscriber.assertUnsubscribed();
+                Assert.assertTrue(testSubscriber.isDisposed());
 
                 table.getSelectionModel().setSelectionInterval(0, 0);
 
                 testSubscriber.assertNoErrors();
                 testSubscriber.assertNoValues();
 
-                assertEquals(numberOfListenersBefore, getNumberOfRowListSelectionListeners(table));
+                Assert.assertEquals(numberOfListenersBefore, getNumberOfRowListSelectionListeners(table));
             }
         }).awaitTerminal();
     }

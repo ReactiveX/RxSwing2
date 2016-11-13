@@ -15,21 +15,56 @@
  */
 package rx.observables;
 
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.ItemSelectable;
+import java.awt.Point;
+import java.awt.Window;
+import java.awt.event.ActionEvent;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ContainerEvent;
+import java.awt.event.FocusEvent;
+import java.awt.event.HierarchyEvent;
+import java.awt.event.ItemEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.WindowEvent;
 import java.beans.PropertyChangeEvent;
 import java.util.Set;
 
-import javax.swing.*;
+import javax.swing.AbstractButton;
+import javax.swing.BoundedRangeModel;
+import javax.swing.ButtonModel;
+import javax.swing.JProgressBar;
+import javax.swing.JSlider;
+import javax.swing.JSpinner;
+import javax.swing.JTabbedPane;
+import javax.swing.JViewport;
+import javax.swing.ListSelectionModel;
+import javax.swing.SpinnerModel;
+import javax.swing.SwingUtilities;
 import javax.swing.colorchooser.ColorSelectionModel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.text.Document;
 
-import rx.Observable;
-import rx.functions.Func1;
-import rx.swing.sources.*;
+import io.reactivex.Observable;
+import rx.swing.sources.AbstractButtonSource;
+import rx.swing.sources.ChangeEventSource;
+import rx.swing.sources.ComponentEventSource;
+import rx.swing.sources.ContainerEventSource;
+import rx.swing.sources.DocumentEventSource;
+import rx.swing.sources.FocusEventSource;
+import rx.swing.sources.HierarchyEventSource;
+import rx.swing.sources.ItemEventSource;
+import rx.swing.sources.KeyEventSource;
+import rx.swing.sources.ListSelectionEventSource;
+import rx.swing.sources.MouseEventSource;
+import rx.swing.sources.PropertyChangeEventSource;
+import rx.swing.sources.WindowEventSource;
 
 /**
  * Allows creating observables from various sources specific to Swing. 
@@ -66,12 +101,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable of key events.
      */
     public static Observable<KeyEvent> fromKeyEvents(Component component, final Set<Integer> keyCodes) {
-        return fromKeyEvents(component).filter(new Func1<KeyEvent, Boolean>() {
-            @Override
-            public Boolean call(KeyEvent event) {
-                return keyCodes.contains(event.getKeyCode());
-            }
-        });
+        return fromKeyEvents(component).filter(event -> keyCodes.contains(event.getKeyCode()));
     }
 
     /**
@@ -180,12 +210,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable emitting the an item event whenever the given itemSelectable is selected.
      */
     public static Observable<ItemEvent> fromItemSelectionEvents(ItemSelectable itemSelectable) {
-        return ItemEventSource.fromItemEventsOf(itemSelectable).filter(new Func1<ItemEvent, Boolean>() {
-            @Override
-            public Boolean call(ItemEvent event) {
-                return event.getStateChange() == ItemEvent.SELECTED;
-            }
-        });
+        return ItemEventSource.fromItemEventsOf(itemSelectable).filter(event -> event.getStateChange() == ItemEvent.SELECTED);
     }
     
     /**
@@ -196,12 +221,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable emitting the an item event whenever the given itemSelectable is deselected.
      */
     public static Observable<ItemEvent> fromItemDeselectionEvents(ItemSelectable itemSelectable) {
-        return ItemEventSource.fromItemEventsOf(itemSelectable).filter(new Func1<ItemEvent, Boolean>() {
-            @Override
-            public Boolean call(ItemEvent event) {
-                return event.getStateChange() == ItemEvent.DESELECTED;
-            }
-        });
+        return ItemEventSource.fromItemEventsOf(itemSelectable).filter(event -> event.getStateChange() == ItemEvent.DESELECTED);
     }
 
     /**
@@ -239,12 +259,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable of property change events for the given component, filtered by the provided property name
      */
     public static Observable<PropertyChangeEvent> fromPropertyChangeEvents(Component component, final String propertyName) {
-        return fromPropertyChangeEvents(component).filter(new Func1<PropertyChangeEvent, Boolean>() {
-            @Override
-            public Boolean call(PropertyChangeEvent event) {
-                return event.getPropertyName().equals(propertyName);
-            }
-        });
+        return fromPropertyChangeEvents(component).filter(event -> event.getPropertyName().equals(propertyName));
     }
 
     /**
@@ -276,12 +291,7 @@ public enum SwingObservable { ; // no instances
      * @return Observable of document events.
      */
     public static Observable<DocumentEvent> fromDocumentEvents(Document document, final Set<DocumentEvent.EventType> eventTypes) {
-        return fromDocumentEvents(document).filter(new Func1<DocumentEvent, Boolean>() {
-            @Override
-            public Boolean call(DocumentEvent event) {
-                return eventTypes.contains(event.getType());
-            }
-        });
+        return fromDocumentEvents(document).filter(event -> eventTypes.contains(event.getType()));
     }
 
     /**

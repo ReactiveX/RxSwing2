@@ -36,25 +36,24 @@ import org.mockito.InOrder;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
-import rx.Observable;
-import rx.Subscription;
-import rx.functions.Action0;
-import rx.functions.Action1;
-import rx.functions.Func1;
+import io.reactivex.Observable;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
 import rx.observables.SwingObservable;
-import rx.swing.sources.ContainerEventSource.Predicate;
 
 @RunWith(Parameterized.class)
 public class ContainerEventSourceTest {
     
-    private final Func1<Container, Observable<ContainerEvent>> observableFactory;
+    private final Function<Container, Observable<ContainerEvent>> observableFactory;
     
     private JPanel panel;
-    private Action1<ContainerEvent> action;
-    private Action1<Throwable> error;
-    private Action0 complete;
+    private Consumer<ContainerEvent> action;
+    private Consumer<Throwable> error;
+    private Action complete;
 
-    public ContainerEventSourceTest(Func1<Container, Observable<ContainerEvent>> observableFactory) {
+    public ContainerEventSourceTest(Function<Container, Observable<ContainerEvent>> observableFactory) {
         this.observableFactory = observableFactory;
     }
     
@@ -68,17 +67,17 @@ public class ContainerEventSourceTest {
     @Before
     public void setup() {
         panel = Mockito.spy(new JPanel());
-        action = Mockito.mock(Action1.class);
-        error = Mockito.mock(Action1.class);
-        complete = Mockito.mock(Action0.class);
+        action = Mockito.mock(Consumer.class);
+        error = Mockito.mock(Consumer.class);
+        complete = Mockito.mock(Action.class);
     }
     
     @Test
     public void testObservingContainerEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
             @Override
-            public void call() {
-                Subscription subscription = observableFactory.call(panel)
+            public void run() throws Exception {
+                Disposable subscription = observableFactory.apply(panel)
                                                              .subscribe(action, error, complete);
                 
                 JPanel child = new JPanel();
@@ -87,14 +86,14 @@ public class ContainerEventSourceTest {
                 
                 InOrder inOrder = Mockito.inOrder(action);
                 
-                inOrder.verify(action).call(Matchers.argThat(containerEventMatcher(panel, child, ContainerEvent.COMPONENT_ADDED)));
-                inOrder.verify(action).call(Matchers.argThat(containerEventMatcher(panel, child, ContainerEvent.COMPONENT_REMOVED)));
+                inOrder.verify(action).accept(Matchers.argThat(containerEventMatcher(panel, child, ContainerEvent.COMPONENT_ADDED)));
+                inOrder.verify(action).accept(Matchers.argThat(containerEventMatcher(panel, child, ContainerEvent.COMPONENT_REMOVED)));
                 inOrder.verifyNoMoreInteractions();
-                Mockito.verify(error, Mockito.never()).call(Mockito.any(Throwable.class));
-                Mockito.verify(complete, Mockito.never()).call();
+                Mockito.verify(error, Mockito.never()).accept(Mockito.any(Throwable.class));
+                Mockito.verify(complete, Mockito.never()).run();
                 
                 // Verifies that the underlying listener has been removed.
-                subscription.unsubscribe();
+                subscription.dispose();
                 Mockito.verify(panel).removeContainerListener(Mockito.any(ContainerListener.class));
                 Assert.assertEquals(0, panel.getHierarchyListeners().length);
                 
@@ -107,23 +106,23 @@ public class ContainerEventSourceTest {
     
     @Test
     public void testObservingFilteredContainerEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
             @Override
-            public void call() {
-                Subscription subscription = observableFactory.call(panel)
-                                                             .filter(Predicate.COMPONENT_ADDED)
+            public void run() throws Exception{
+                Disposable subscription = observableFactory.apply(panel)
+                                                             .filter(rx.swing.sources.ContainerEventSource.Predicates.COMPONENT_ADDED)
                                                              .subscribe(action, error, complete);
                 
                 JPanel child = new JPanel();
                 panel.add(child);
                 panel.remove(child); // sanity check to verify that the filtering works.
                 
-                Mockito.verify(action).call(Matchers.argThat(containerEventMatcher(panel, child, ContainerEvent.COMPONENT_ADDED)));
-                Mockito.verify(error, Mockito.never()).call(Mockito.any(Throwable.class));
-                Mockito.verify(complete, Mockito.never()).call();
+                Mockito.verify(action).accept(Matchers.argThat(containerEventMatcher(panel, child, ContainerEvent.COMPONENT_ADDED)));
+                Mockito.verify(error, Mockito.never()).accept(Mockito.any(Throwable.class));
+                Mockito.verify(complete, Mockito.never()).run();
                 
                 // Verifies that the underlying listener has been removed.
-                subscription.unsubscribe();
+                subscription.dispose();
                 Mockito.verify(panel).removeContainerListener(Mockito.any(ContainerListener.class));
                 Assert.assertEquals(0, panel.getHierarchyListeners().length);
                 
@@ -157,21 +156,21 @@ public class ContainerEventSourceTest {
         };
     }
 
-    private static Func1<Container, Observable<ContainerEvent>> observableFromContainerEventSource()
+    private static Function<Container, Observable<ContainerEvent>> observableFromContainerEventSource()
     {
-        return new Func1<Container, Observable<ContainerEvent>>(){
+        return new Function<Container, Observable<ContainerEvent>>(){
             @Override
-            public Observable<ContainerEvent> call(Container container) {
+            public Observable<ContainerEvent> apply(Container container) {
                 return ContainerEventSource.fromContainerEventsOf(container);
             }
         }; 
     }
     
-    private static Func1<Container, Observable<ContainerEvent>> observableFromSwingObservable()
+    private static Function<Container, Observable<ContainerEvent>> observableFromSwingObservable()
     {
-        return new Func1<Container, Observable<ContainerEvent>>(){
+        return new Function<Container, Observable<ContainerEvent>>(){
             @Override
-            public Observable<ContainerEvent> call(Container container) {
+            public Observable<ContainerEvent> apply(Container container) {
                 return SwingObservable.fromContainerEvents(container);
             }
         }; 

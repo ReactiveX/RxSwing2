@@ -33,8 +33,8 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.InOrder;
 
-import rx.Scheduler.Worker;
-import rx.functions.Action0;
+import io.reactivex.Scheduler.Worker;
+import io.reactivex.functions.Action;
 
 /**
  * Executes work on the Swing UI thread.
@@ -49,8 +49,8 @@ public final class SwingSchedulerTest {
     public void testInvalidDelayValues() {
         final SwingScheduler scheduler = new SwingScheduler();
         final Worker inner = scheduler.createWorker();
-        final Action0 action = mock(Action0.class);
-
+        final Runnable action = mock(Runnable.class);
+        
         inner.schedulePeriodically(action, -1L, 100L, TimeUnit.SECONDS);
 
         inner.schedulePeriodically(action, 100L, -1L, TimeUnit.SECONDS);
@@ -69,12 +69,17 @@ public final class SwingSchedulerTest {
 
         final CountDownLatch latch = new CountDownLatch(4);
 
-        final Action0 innerAction = mock(Action0.class);
-        final Action0 action = new Action0() {
+        final Action innerAction = mock(Action.class);
+        final Runnable action = new Runnable() {
             @Override
-            public void call() {
+            public void run() {
                 try {
-                    innerAction.call();
+                    try {
+						innerAction.run();
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
                     assertTrue(SwingUtilities.isEventDispatchThread());
                 } finally {
                     latch.countDown();
@@ -88,9 +93,9 @@ public final class SwingSchedulerTest {
             fail("timed out waiting for tasks to execute");
         }
 
-        inner.unsubscribe();
+        inner.dispose();
         waitForEmptyEventQueue();
-        verify(innerAction, times(4)).call();
+        verify(innerAction, times(4)).run();
     }
 
     @Test
@@ -98,39 +103,39 @@ public final class SwingSchedulerTest {
         final SwingScheduler scheduler = new SwingScheduler();
         final Worker inner = scheduler.createWorker();
 
-        final Action0 firstStepStart = mock(Action0.class);
-        final Action0 firstStepEnd = mock(Action0.class);
+        final Runnable firstStepStart = mock(Runnable.class);
+        final Runnable firstStepEnd = mock(Runnable.class);
 
-        final Action0 secondStepStart = mock(Action0.class);
-        final Action0 secondStepEnd = mock(Action0.class);
+        final Runnable secondStepStart = mock(Runnable.class);
+        final Runnable secondStepEnd = mock(Runnable.class);
 
-        final Action0 thirdStepStart = mock(Action0.class);
-        final Action0 thirdStepEnd = mock(Action0.class);
+        final Runnable thirdStepStart = mock(Runnable.class);
+        final Runnable thirdStepEnd = mock(Runnable.class);
 
-        final Action0 firstAction = new Action0() {
+        final Runnable firstAction = new Runnable() {
             @Override
-            public void call() {
+            public void run() {
                 assertTrue(SwingUtilities.isEventDispatchThread());
-                firstStepStart.call();
-                firstStepEnd.call();
+                firstStepStart.run();
+                firstStepEnd.run();
             }
         };
-        final Action0 secondAction = new Action0() {
+        final Runnable secondAction = new Runnable() {
             @Override
-            public void call() {
+            public void run() {
                 assertTrue(SwingUtilities.isEventDispatchThread());
-                secondStepStart.call();
+                secondStepStart.run();
                 inner.schedule(firstAction);
-                secondStepEnd.call();
+                secondStepEnd.run();
             }
         };
-        final Action0 thirdAction = new Action0() {
+        final Runnable thirdAction = new Runnable() {
             @Override
-            public void call() {
+            public void run() {
                 assertTrue(SwingUtilities.isEventDispatchThread());
-                thirdStepStart.call();
+                thirdStepStart.run();
                 inner.schedule(secondAction);
-                thirdStepEnd.call();
+                thirdStepEnd.run();
             }
         };
 
@@ -139,12 +144,12 @@ public final class SwingSchedulerTest {
         inner.schedule(thirdAction);
         waitForEmptyEventQueue();
 
-        inOrder.verify(thirdStepStart, times(1)).call();
-        inOrder.verify(secondStepStart, times(1)).call();
-        inOrder.verify(firstStepStart, times(1)).call();
-        inOrder.verify(firstStepEnd, times(1)).call();
-        inOrder.verify(secondStepEnd, times(1)).call();
-        inOrder.verify(thirdStepEnd, times(1)).call();
+        inOrder.verify(thirdStepStart, times(1)).run();
+        inOrder.verify(secondStepStart, times(1)).run();
+        inOrder.verify(firstStepStart, times(1)).run();
+        inOrder.verify(firstStepEnd, times(1)).run();
+        inOrder.verify(secondStepEnd, times(1)).run();
+        inOrder.verify(thirdStepEnd, times(1)).run();
     }
 
     private static void waitForEmptyEventQueue() throws Exception {

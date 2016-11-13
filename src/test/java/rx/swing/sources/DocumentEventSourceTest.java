@@ -15,9 +15,15 @@
  */
 package rx.swing.sources;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+
 import javax.swing.JEditorPane;
 import javax.swing.event.DocumentEvent;
 import javax.swing.text.BadLocationException;
@@ -25,61 +31,62 @@ import javax.swing.text.Document;
 import javax.swing.text.Style;
 import javax.swing.text.StyleContext;
 import javax.swing.text.html.HTMLDocument;
+
 import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.mockito.ArgumentMatcher;
-import rx.functions.Action0;
-import rx.functions.Action1;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
-import rx.Subscription;
-import static org.mockito.Mockito.*;
+
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
 import rx.observables.SwingObservable;
 
 public class DocumentEventSourceTest {
 
     @Test
     public void testObservingDocumentEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call() {
+            public void run() throws Exception{
                 @SuppressWarnings("unchecked")
-                Action1<DocumentEvent> action = mock(Action1.class);
+                Consumer<DocumentEvent> action = mock(Consumer.class);
                 @SuppressWarnings("unchecked")
-                Action1<Throwable> error = mock(Action1.class);
-                Action0 complete = mock(Action0.class);
+                Consumer<Throwable> error = mock(Consumer.class);
+                Action complete = mock(Action.class);
 
                 final JEditorPane pane = new JEditorPane();
                 // Document must by StyledDocument to test changeUpdate
                 pane.setContentType("text/html");
                 final Document doc = (HTMLDocument) pane.getDocument();
 
-                final Subscription subscription = DocumentEventSource.fromDocumentEventsOf(doc)
+                final Disposable subscription = DocumentEventSource.fromDocumentEventsOf(doc)
                         .subscribe(action, error, complete);
 
-                verify(action, never()).call(Matchers.<DocumentEvent>any());
-                verify(error, never()).call(Matchers.<Throwable>any());
-                verify(complete, never()).call();
+                verify(action, never()).accept(Matchers.<DocumentEvent>any());
+                verify(error, never()).accept(Matchers.<Throwable>any());
+                verify(complete, never()).run();
 
                 // test insertUpdate
                 insertStringToDocument(doc, 0, "test text");
-                verify(action).call(Mockito.argThat(documentEventMatcher(DocumentEvent.EventType.INSERT)));
+                verify(action).accept(Mockito.argThat(documentEventMatcher(DocumentEvent.EventType.INSERT)));
                 verifyNoMoreInteractions(action, error, complete);
 
                 // test removeUpdate
                 removeFromDocument(doc, 0, 5);
-                verify(action).call(Mockito.argThat(documentEventMatcher(DocumentEvent.EventType.REMOVE)));
+                verify(action).accept(Mockito.argThat(documentEventMatcher(DocumentEvent.EventType.REMOVE)));
                 verifyNoMoreInteractions(action, error, complete);
 
                 // test changeUpdate
                 Style defaultStyle = StyleContext.getDefaultStyleContext().getStyle(StyleContext.DEFAULT_STYLE);
                 ((HTMLDocument) doc).setCharacterAttributes(0, doc.getLength(), defaultStyle, true);
-                verify(action).call(Mockito.argThat(documentEventMatcher(DocumentEvent.EventType.CHANGE)));
+                verify(action).accept(Mockito.argThat(documentEventMatcher(DocumentEvent.EventType.CHANGE)));
                 verifyNoMoreInteractions(action, error, complete);
 
                 // test unsubscribe
-                subscription.unsubscribe();
+                subscription.dispose();
                 insertStringToDocument(doc, 0, "this should be ignored");
                 verifyNoMoreInteractions(action, error, complete);
             }
@@ -89,31 +96,31 @@ public class DocumentEventSourceTest {
 
     @Test
     public void testObservingFilteredDocumentEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call() {
+            public void run() throws Exception{
                 @SuppressWarnings("unchecked")
-                Action1<DocumentEvent> action = mock(Action1.class);
+                Consumer<DocumentEvent> action = mock(Consumer.class);
                 @SuppressWarnings("unchecked")
-                Action1<Throwable> error = mock(Action1.class);
-                Action0 complete = mock(Action0.class);
+                Consumer<Throwable> error = mock(Consumer.class);
+                Action complete = mock(Action.class);
 
                 final Document doc = new JEditorPane().getDocument();
 
                 // filter only INSERT, others will be ignored
                 final Set<DocumentEvent.EventType> filteredTypes
                         = new HashSet<DocumentEvent.EventType>(Arrays.asList(DocumentEvent.EventType.INSERT));
-                final Subscription subscription = SwingObservable.fromDocumentEvents(doc, filteredTypes)
+                final Disposable subscription = SwingObservable.fromDocumentEvents(doc, filteredTypes)
                         .subscribe(action, error, complete);
 
-                verify(action, never()).call(Matchers.<DocumentEvent>any());
-                verify(error, never()).call(Matchers.<Throwable>any());
-                verify(complete, never()).call();
+                verify(action, never()).accept(Matchers.<DocumentEvent>any());
+                verify(error, never()).accept(Matchers.<Throwable>any());
+                verify(complete, never()).run();
 
                 // test insertUpdate
                 insertStringToDocument(doc, 0, "test text");
-                verify(action).call(Mockito.argThat(documentEventMatcher(DocumentEvent.EventType.INSERT)));
+                verify(action).accept(Mockito.argThat(documentEventMatcher(DocumentEvent.EventType.INSERT)));
                 verifyNoMoreInteractions(action, error, complete);
 
                 // test removeUpdate
@@ -122,7 +129,7 @@ public class DocumentEventSourceTest {
                 verifyNoMoreInteractions(action, error, complete);
 
                 // test unsubscribe
-                subscription.unsubscribe();
+                subscription.dispose();
                 insertStringToDocument(doc, 0, "this should be ignored");
                 verifyNoMoreInteractions(action, error, complete);
             }

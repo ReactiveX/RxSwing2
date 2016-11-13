@@ -18,8 +18,8 @@ package rx.swing.sources;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import rx.Scheduler.Worker;
-import rx.functions.Action0;
+import io.reactivex.Scheduler.Worker;
+import io.reactivex.functions.Action;
 import rx.schedulers.SwingScheduler;
 
 /* package-private */final class SwingTestHelper { // only for test
@@ -34,14 +34,14 @@ import rx.schedulers.SwingScheduler;
         return new SwingTestHelper();
     }
 
-    public SwingTestHelper runInEventDispatchThread(final Action0 action) {
+    public SwingTestHelper runInEventDispatchThread(final Action action) {
         Worker inner = SwingScheduler.getInstance().createWorker();
-        inner.schedule(new Action0() {
+        inner.schedule(new Runnable() {
 
             @Override
-            public void call() {
+            public void run() {
                 try {
-                    action.call();
+                    action.run();
                 } catch (Throwable e) {
                     error = e;
                 }

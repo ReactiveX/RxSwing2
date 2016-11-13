@@ -15,16 +15,15 @@
  */
 package rx.swing.sources;
 
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
-import rx.functions.Action0;
-import rx.schedulers.SwingScheduler;
-import rx.subscriptions.Subscriptions;
-
 import javax.swing.ListSelectionModel;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.disposables.Disposables;
+import rx.schedulers.SwingScheduler;
 
 public enum ListSelectionEventSource { ; // no instances
 
@@ -32,9 +31,9 @@ public enum ListSelectionEventSource { ; // no instances
 	 * @see rx.observables.SwingObservable#fromListSelectionEvents(ListSelectionModel)
 	 */
 	public static Observable<ListSelectionEvent> fromListSelectionEventsOf(final ListSelectionModel listSelectionModel) {
-		return Observable.create(new OnSubscribe<ListSelectionEvent>() {
+		return Observable.create(new ObservableOnSubscribe<ListSelectionEvent>() {
 			@Override
-			public void call(final Subscriber<? super ListSelectionEvent> subscriber) {
+			public void subscribe(final ObservableEmitter<ListSelectionEvent> subscriber) {
 				final ListSelectionListener listener = new ListSelectionListener() {
 					@Override
 					public void valueChanged(final ListSelectionEvent event) {
@@ -43,11 +42,10 @@ public enum ListSelectionEventSource { ; // no instances
 
 				};
 				listSelectionModel.addListSelectionListener(listener);
-				subscriber.add(Subscriptions.create(new Action0() {
-					@Override
-					public void call() {
+				subscriber.setDisposable(Disposables.fromAction(() ->  {
+				
 						listSelectionModel.removeListSelectionListener(listener);
-					}
+				
 				}));
 			}
 		}).subscribeOn(SwingScheduler.getInstance())

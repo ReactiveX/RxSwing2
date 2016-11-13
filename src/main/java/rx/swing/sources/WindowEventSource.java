@@ -15,74 +15,73 @@
  */
 package rx.swing.sources;
 
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
-import rx.functions.Action0;
-import rx.schedulers.SwingScheduler;
-import rx.subscriptions.Subscriptions;
-
-import java.awt.*;
+import java.awt.Window;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.disposables.Disposables;
+import rx.schedulers.SwingScheduler;
 
-public enum WindowEventSource { ; // no instances
+public enum WindowEventSource {
+	; // no instances
 
-    /**
-     * @see rx.observables.SwingObservable#fromWindowEventsOf(Window)
-     */
-    public static Observable<WindowEvent> fromWindowEventsOf(final Window window) {
-        return Observable.create(new OnSubscribe<WindowEvent>() {
-            @Override
-            public void call(final Subscriber<? super WindowEvent> subscriber) {
-                final WindowListener windowListener = new WindowListener() {
-                    @Override
-                    public void windowOpened(WindowEvent windowEvent) {
-                        subscriber.onNext(windowEvent);
-                    }
+	/**
+	 * @see rx.observables.SwingObservable#fromWindowEventsOf(Window)
+	 */
+	public static Observable<WindowEvent> fromWindowEventsOf(final Window window) {
+		return Observable.create(new ObservableOnSubscribe<WindowEvent>() {
 
-                    @Override
-                    public void windowClosing(WindowEvent windowEvent) {
-                        subscriber.onNext(windowEvent);
-                    }
+			@Override
+			public void subscribe(ObservableEmitter<WindowEvent> subscriber) throws Exception {
+				final WindowListener windowListener = new WindowListener() {
+					@Override
+					public void windowOpened(WindowEvent windowEvent) {
+						subscriber.onNext(windowEvent);
+					}
 
-                    @Override
-                    public void windowClosed(WindowEvent windowEvent) {
-                        subscriber.onNext(windowEvent);
-                    }
+					@Override
+					public void windowClosing(WindowEvent windowEvent) {
+						subscriber.onNext(windowEvent);
+					}
 
-                    @Override
-                    public void windowIconified(WindowEvent windowEvent) {
-                        subscriber.onNext(windowEvent);
-                    }
+					@Override
+					public void windowClosed(WindowEvent windowEvent) {
+						subscriber.onNext(windowEvent);
+					}
 
-                    @Override
-                    public void windowDeiconified(WindowEvent windowEvent) {
-                        subscriber.onNext(windowEvent);
-                    }
+					@Override
+					public void windowIconified(WindowEvent windowEvent) {
+						subscriber.onNext(windowEvent);
+					}
 
-                    @Override
-                    public void windowActivated(WindowEvent windowEvent) {
-                        subscriber.onNext(windowEvent);
-                    }
+					@Override
+					public void windowDeiconified(WindowEvent windowEvent) {
+						subscriber.onNext(windowEvent);
+					}
 
-                    @Override
-                    public void windowDeactivated(WindowEvent windowEvent) {
-                        subscriber.onNext(windowEvent);
-                    }
-                };
+					@Override
+					public void windowActivated(WindowEvent windowEvent) {
+						subscriber.onNext(windowEvent);
+					}
 
-                window.addWindowListener(windowListener);
+					@Override
+					public void windowDeactivated(WindowEvent windowEvent) {
+						subscriber.onNext(windowEvent);
+					}
+				};
 
-                subscriber.add(Subscriptions.create(new Action0() {
-                    @Override
-                    public void call() {
-                        window.removeWindowListener(windowListener);
-                    }
-                }));
-            }
-        }).subscribeOn(SwingScheduler.getInstance())
-                .unsubscribeOn(SwingScheduler.getInstance());
-    }
+				window.addWindowListener(windowListener);
+
+				subscriber.setDisposable(Disposables.fromAction(() -> {
+
+					window.removeWindowListener(windowListener);
+
+				}));
+
+			}
+		}).subscribeOn(SwingScheduler.getInstance()).unsubscribeOn(SwingScheduler.getInstance());
+	}
 }

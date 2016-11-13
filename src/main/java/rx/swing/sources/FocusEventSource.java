@@ -15,17 +15,16 @@
  */
 package rx.swing.sources;
 
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
-import rx.functions.Action0;
-import rx.functions.Func1;
-import rx.schedulers.SwingScheduler;
-import rx.subscriptions.Subscriptions;
-
-import java.awt.*;
+import java.awt.Component;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
+
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.disposables.Disposables;
+import io.reactivex.functions.Predicate;
+import rx.schedulers.SwingScheduler;
 
 public enum FocusEventSource { ; // no instances
 
@@ -33,9 +32,9 @@ public enum FocusEventSource { ; // no instances
      * @see rx.observables.SwingObservable#fromFocusEvents
      */
     public static Observable<FocusEvent> fromFocusEventsOf(final Component component) {
-        return Observable.create(new OnSubscribe<FocusEvent>() {
+        return Observable.create(new ObservableOnSubscribe<FocusEvent>() {
             @Override
-            public void call(final Subscriber<? super FocusEvent> subscriber) {
+            public void subscribe(ObservableEmitter<FocusEvent> subscriber) {
                 final FocusListener listener = new FocusListener() {
 
                     @Override
@@ -49,11 +48,10 @@ public enum FocusEventSource { ; // no instances
                     }
                 };
                 component.addFocusListener(listener);
-                subscriber.add(Subscriptions.create(new Action0() {
-                    @Override
-                    public void call() {
+                subscriber.setDisposable(Disposables.fromAction(() ->  {
+                   
                         component.removeFocusListener(listener);
-                    }
+                    
                 }));
             }
         }).subscribeOn(SwingScheduler.getInstance())
@@ -63,18 +61,18 @@ public enum FocusEventSource { ; // no instances
     /**
      * Predicates that help with filtering observables for specific focus events.
      */
-    public enum Predicate implements Func1<FocusEvent, Boolean> {
+    public enum Predicates implements Predicate<FocusEvent> {
         FOCUS_GAINED(FocusEvent.FOCUS_GAINED),
         FOCUS_LOST(FocusEvent.FOCUS_LOST);
 
         private final int id;
 
-        private Predicate(int id) {
+        private Predicates(int id) {
             this.id = id;
         }
 
         @Override
-        public Boolean call(FocusEvent event) {
+        public boolean test(FocusEvent event) {
             return event.getID() == id;
         }
     }

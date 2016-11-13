@@ -22,8 +22,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import javax.swing.JPanel;
-
 import java.awt.Component;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
@@ -31,49 +29,51 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import javax.swing.JPanel;
+
 import org.junit.Test;
 import org.mockito.InOrder;
 import org.mockito.Matchers;
 
-import rx.Subscription;
-import rx.functions.Action0;
-import rx.functions.Action1;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
 
 public class KeyEventSourceTest {
     private Component comp = new JPanel();
 
     @Test
     public void testObservingKeyEvents() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call() {
+            public void run()  throws Exception{
                 @SuppressWarnings("unchecked")
-                Action1<KeyEvent> action = mock(Action1.class);
+                Consumer<KeyEvent> action = mock(Consumer.class);
                 @SuppressWarnings("unchecked")
-                Action1<Throwable> error = mock(Action1.class);
-                Action0 complete = mock(Action0.class);
+                Consumer<Throwable> error = mock(Consumer.class);
+                Action complete = mock(Action.class);
 
                 final KeyEvent event = mock(KeyEvent.class);
 
-                Subscription sub = KeyEventSource.fromKeyEventsOf(comp)
+                Disposable sub = KeyEventSource.fromKeyEventsOf(comp)
                         .subscribe(action, error, complete);
 
-                verify(action, never()).call(Matchers.<KeyEvent> any());
-                verify(error, never()).call(Matchers.<Throwable> any());
-                verify(complete, never()).call();
+                verify(action, never()).accept(Matchers.<KeyEvent> any());
+                verify(error, never()).accept(Matchers.<Throwable> any());
+                verify(complete, never()).run();
 
                 fireKeyEvent(event);
-                verify(action, times(1)).call(Matchers.<KeyEvent> any());
+                verify(action, times(1)).accept(Matchers.<KeyEvent> any());
 
                 fireKeyEvent(event);
-                verify(action, times(2)).call(Matchers.<KeyEvent> any());
+                verify(action, times(2)).accept(Matchers.<KeyEvent> any());
 
-                sub.unsubscribe();
+                sub.dispose();
                 fireKeyEvent(event);
-                verify(action, times(2)).call(Matchers.<KeyEvent> any());
-                verify(error, never()).call(Matchers.<Throwable> any());
-                verify(complete, never()).call();
+                verify(action, times(2)).accept(Matchers.<KeyEvent> any());
+                verify(error, never()).accept(Matchers.<Throwable> any());
+                verify(complete, never()).run();
             }
 
         }).awaitTerminal();
@@ -81,55 +81,55 @@ public class KeyEventSourceTest {
 
     @Test
     public void testObservingPressedKeys() throws Throwable {
-        SwingTestHelper.create().runInEventDispatchThread(new Action0() {
+        SwingTestHelper.create().runInEventDispatchThread(new Action() {
 
             @Override
-            public void call() {
+            public void run() throws Exception{
                 @SuppressWarnings("unchecked")
-                Action1<Set<Integer>> action = mock(Action1.class);
+                Consumer<Set<Integer>> action = mock(Consumer.class);
                 @SuppressWarnings("unchecked")
-                Action1<Throwable> error = mock(Action1.class);
-                Action0 complete = mock(Action0.class);
+                Consumer<Throwable> error = mock(Consumer.class);
+                Action complete = mock(Action.class);
 
-                Subscription sub = KeyEventSource.currentlyPressedKeysOf(comp)
+                Disposable sub = KeyEventSource.currentlyPressedKeysOf(comp)
                         .subscribe(action, error, complete);
 
                 InOrder inOrder = inOrder(action);
-                inOrder.verify(action).call(
+                inOrder.verify(action).accept(
                         Collections.<Integer> emptySet());
-                verify(error, never()).call(Matchers.<Throwable> any());
-                verify(complete, never()).call();
+                verify(error, never()).accept(Matchers.<Throwable> any());
+                verify(complete, never()).run();
 
                 fireKeyEvent(keyEvent(1, KeyEvent.KEY_PRESSED));
-                inOrder.verify(action, times(1)).call(
+                inOrder.verify(action, times(1)).accept(
                         new HashSet<Integer>(asList(1)));
-                verify(error, never()).call(Matchers.<Throwable> any());
-                verify(complete, never()).call();
+                verify(error, never()).accept(Matchers.<Throwable> any());
+                verify(complete, never()).run();
 
                 fireKeyEvent(keyEvent(2, KeyEvent.KEY_PRESSED));
                 fireKeyEvent(keyEvent(KeyEvent.VK_UNDEFINED, KeyEvent.KEY_TYPED));
-                inOrder.verify(action, times(1)).call(
+                inOrder.verify(action, times(1)).accept(
                         new HashSet<Integer>(asList(1, 2)));
 
                 fireKeyEvent(keyEvent(2, KeyEvent.KEY_RELEASED));
-                inOrder.verify(action, times(1)).call(
+                inOrder.verify(action, times(1)).accept(
                         new HashSet<Integer>(asList(1)));
 
                 fireKeyEvent(keyEvent(3, KeyEvent.KEY_RELEASED));
-                inOrder.verify(action, times(1)).call(
+                inOrder.verify(action, times(1)).accept(
                         new HashSet<Integer>(asList(1)));
 
                 fireKeyEvent(keyEvent(1, KeyEvent.KEY_RELEASED));
-                inOrder.verify(action, times(1)).call(
+                inOrder.verify(action, times(1)).accept(
                         Collections.<Integer> emptySet());
 
-                sub.unsubscribe();
+                sub.dispose();
 
                 fireKeyEvent(keyEvent(1, KeyEvent.KEY_PRESSED));
-                inOrder.verify(action, never()).call(
+                inOrder.verify(action, never()).accept(
                         Matchers.<Set<Integer>> any());
-                verify(error, never()).call(Matchers.<Throwable> any());
-                verify(complete, never()).call();
+                verify(error, never()).accept(Matchers.<Throwable> any());
+                verify(complete, never()).run();
             }
 
         }).awaitTerminal();

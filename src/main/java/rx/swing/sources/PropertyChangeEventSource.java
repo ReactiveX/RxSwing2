@@ -15,23 +15,22 @@
  */
 package rx.swing.sources;
 
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
-import rx.functions.Action0;
-import rx.schedulers.SwingScheduler;
-import rx.subscriptions.Subscriptions;
-
-import java.awt.*;
+import java.awt.Component;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.disposables.Disposables;
+import rx.schedulers.SwingScheduler;
 
 public enum PropertyChangeEventSource { ; // no instances
 
     public static Observable<PropertyChangeEvent> fromPropertyChangeEventsOf(final Component component) {
-        return Observable.create(new OnSubscribe<PropertyChangeEvent>() {
+        return Observable.create(new ObservableOnSubscribe<PropertyChangeEvent>() {
             @Override
-            public void call(final Subscriber<? super PropertyChangeEvent> subscriber) {
+            public void subscribe(final ObservableEmitter<PropertyChangeEvent> subscriber) {
                 final PropertyChangeListener listener = new PropertyChangeListener() {
                     @Override
                     public void propertyChange(PropertyChangeEvent event) {
@@ -39,11 +38,8 @@ public enum PropertyChangeEventSource { ; // no instances
                     }
                 };
                 component.addPropertyChangeListener(listener);
-                subscriber.add(Subscriptions.create(new Action0() {
-                    @Override
-                    public void call() {
+                subscriber.setDisposable(Disposables.fromAction(() ->  {
                         component.removePropertyChangeListener(listener);
-                    }
                 }));
             }
         }).subscribeOn(SwingScheduler.getInstance())

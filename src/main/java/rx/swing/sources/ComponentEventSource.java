@@ -15,93 +15,84 @@
  */
 package rx.swing.sources;
 
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
-import rx.functions.Action0;
-import rx.functions.Func1;
-import rx.observables.SwingObservable;
-import rx.schedulers.SwingScheduler;
-import rx.subscriptions.Subscriptions;
-
-import java.awt.*;
+import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 
-import static rx.swing.sources.ComponentEventSource.Predicate.RESIZED;
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.disposables.Disposables;
+import io.reactivex.functions.Predicate;
+import rx.observables.SwingObservable;
+import rx.schedulers.SwingScheduler;
 
-public enum ComponentEventSource { ; // no instances
+public enum ComponentEventSource {
+	; // no instances
 
-    /**
-     * @see rx.observables.SwingObservable#fromComponentEvents
-     */
-    public static Observable<ComponentEvent> fromComponentEventsOf(final Component component) {
-        return Observable.create(new OnSubscribe<ComponentEvent>() {
-            @Override
-            public void call(final Subscriber<? super ComponentEvent> subscriber) {
-                final ComponentListener listener = new ComponentListener() {
-                    @Override
-                    public void componentHidden(ComponentEvent event) {
-                        subscriber.onNext(event);
-                    }
+	/**
+	 * @see rx.observables.SwingObservable#fromComponentEvents
+	 */
+	public static Observable<ComponentEvent> fromComponentEventsOf(final Component component) {
+		return Observable.create(new ObservableOnSubscribe<ComponentEvent>() {
 
-                    @Override
-                    public void componentMoved(ComponentEvent event) {
-                        subscriber.onNext(event);
-                    }
+			@Override
+			public void subscribe(ObservableEmitter<ComponentEvent> subscriber) throws Exception {
+				final ComponentListener listener = new ComponentListener() {
+					@Override
+					public void componentHidden(ComponentEvent event) {
+						subscriber.onNext(event);
+					}
 
-                    @Override
-                    public void componentResized(ComponentEvent event) {
-                        subscriber.onNext(event);
-                    }
+					@Override
+					public void componentMoved(ComponentEvent event) {
+						subscriber.onNext(event);
+					}
 
-                    @Override
-                    public void componentShown(ComponentEvent event) {
-                        subscriber.onNext(event);
-                    }
-                };
-                component.addComponentListener(listener);
-                subscriber.add(Subscriptions.create(new Action0() {
-                    @Override
-                    public void call() {
-                        component.removeComponentListener(listener);
-                    }
-                }));
-            }
-        }).subscribeOn(SwingScheduler.getInstance())
-                .unsubscribeOn(SwingScheduler.getInstance());
-    }
-    
-    /**
-     * @see SwingObservable#fromResizing
-     */
-    public static Observable<Dimension> fromResizing(final Component component) {
-        return fromComponentEventsOf(component).filter(RESIZED).map(new Func1<ComponentEvent, Dimension>() {
-            @Override
-            public Dimension call(ComponentEvent event) {
-                return event.getComponent().getSize();
-            }
-        });
-    }
-    
-    /**
-     * Predicates that help with filtering observables for specific component events. 
-     */
-    public enum Predicate implements rx.functions.Func1<java.awt.event.ComponentEvent, Boolean> { 
-        RESIZED(ComponentEvent.COMPONENT_RESIZED),
-        HIDDEN(ComponentEvent.COMPONENT_HIDDEN),
-        MOVED(ComponentEvent.COMPONENT_MOVED),
-        SHOWN(ComponentEvent.COMPONENT_SHOWN);
-        
-        private final int id;
-        
-        private Predicate(int id) {
-            this.id = id;
-        }
-        
-        @Override
-        public Boolean call(ComponentEvent event) {
-            return event.getID() == id;
-        }
-    }
+					@Override
+					public void componentResized(ComponentEvent event) {
+						subscriber.onNext(event);
+					}
+
+					@Override
+					public void componentShown(ComponentEvent event) {
+						subscriber.onNext(event);
+					}
+				};
+				component.addComponentListener(listener);
+				subscriber.setDisposable(Disposables.fromAction(() -> {
+					component.removeComponentListener(listener);
+				}));
+
+			}
+		}).subscribeOn(SwingScheduler.getInstance()).unsubscribeOn(SwingScheduler.getInstance());
+	}
+
+	/**
+	 * @see SwingObservable#fromResizing
+	 */
+	public static Observable<Dimension> fromResizing(final Component component) {
+		return fromComponentEventsOf(component).filter(Predicates.RESIZED).map(event -> event.getComponent().getSize());
+	}
+
+	/**
+	 * Predicates that help with filtering observables for specific component events.
+	 */
+	public enum Predicates implements Predicate<java.awt.event.ComponentEvent> {
+		RESIZED(ComponentEvent.COMPONENT_RESIZED), HIDDEN(ComponentEvent.COMPONENT_HIDDEN), MOVED(ComponentEvent.COMPONENT_MOVED), SHOWN(
+				ComponentEvent.COMPONENT_SHOWN);
+
+		private final int id;
+
+		private Predicates(int id) {
+			this.id = id;
+		}
+
+
+		@Override
+		public boolean test(ComponentEvent event) throws Exception {
+			return event.getID() == id;
+		}
+	}
 }

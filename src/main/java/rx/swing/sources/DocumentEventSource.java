@@ -19,47 +19,46 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.Document;
 
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
-import rx.functions.Action0;
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.disposables.Disposables;
 import rx.schedulers.SwingScheduler;
-import rx.subscriptions.Subscriptions;
 
-public enum DocumentEventSource { ; // no instances
+public enum DocumentEventSource {
+	; // no instances
 
-    /**
-     * @see rx.observables.SwingObservable#fromDocumentEvents(Document)
-     */
-    public static Observable<DocumentEvent> fromDocumentEventsOf(final Document document) {
-        return Observable.create(new OnSubscribe<DocumentEvent>() {
-            @Override
-            public void call(final Subscriber<? super DocumentEvent> subscriber) {
-                final DocumentListener listener = new DocumentListener() {
-                    @Override
-                    public void insertUpdate(DocumentEvent event) {
-                        subscriber.onNext(event);
-                    }
+	/**
+	 * @see rx.observables.SwingObservable#fromDocumentEvents(Document)
+	 */
+	public static Observable<DocumentEvent> fromDocumentEventsOf(final Document document) {
+		return Observable.create(new ObservableOnSubscribe<DocumentEvent>() {
+			@Override
+			public void subscribe(ObservableEmitter<DocumentEvent> subscriber) throws Exception {
 
-                    @Override
-                    public void removeUpdate(DocumentEvent event) {
-                        subscriber.onNext(event);
-                    }
+				final DocumentListener listener = new DocumentListener() {
+					@Override
+					public void insertUpdate(DocumentEvent event) {
+						subscriber.onNext(event);
+					}
 
-                    @Override
-                    public void changedUpdate(DocumentEvent event) {
-                        subscriber.onNext(event);
-                    }
-                };
-                document.addDocumentListener(listener);
-                subscriber.add(Subscriptions.create(new Action0() {
-                    @Override
-                    public void call() {
-                        document.removeDocumentListener(listener);
-                    }
-                }));
-            }
-        }).subscribeOn(SwingScheduler.getInstance())
-                .unsubscribeOn(SwingScheduler.getInstance());
-    }
+					@Override
+					public void removeUpdate(DocumentEvent event) {
+						subscriber.onNext(event);
+					}
+
+					@Override
+					public void changedUpdate(DocumentEvent event) {
+						subscriber.onNext(event);
+					}
+				};
+				document.addDocumentListener(listener);
+				subscriber.setDisposable(Disposables.fromAction(() -> {
+					document.removeDocumentListener(listener);
+				}));
+
+			}
+
+		}).subscribeOn(SwingScheduler.getInstance()).unsubscribeOn(SwingScheduler.getInstance());
+	}
 }
