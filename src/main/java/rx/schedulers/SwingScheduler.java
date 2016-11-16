@@ -60,9 +60,9 @@ public final class SwingScheduler extends Scheduler {
 			long delay = Math.max(0, unit.toMillis(delayTime));
 			assertThatTheDelayIsValidForTheSwingTimer(delay);
 
-			//FIXME: better implementation, fix to avoid deadlock
+			
 			if(delayTime == 0){
-				return schedule(action);
+				return scheduleNow(action);
 			}
 			
 			class ExecuteOnceAction implements ActionListener {
@@ -92,7 +92,10 @@ public final class SwingScheduler extends Scheduler {
 
 		@Override
 		public Disposable schedule(final Runnable action) {
+			return scheduleNow(action);
+		}
 
+		private Disposable scheduleNow(final Runnable action) {
 			final Runnable runnable = new Runnable() {
 				@Override
 				public void run() {
