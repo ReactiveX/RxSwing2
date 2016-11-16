@@ -1,4 +1,4 @@
-# RxSwing: Swing bindings for RxJava
+# RxSwing2: Swing bindings for RxJava
 
 Learn more about RxJava on the <a href="https://github.com/ReactiveX/RxJava/wiki">Wiki Home</a> and the <a href="http://techblog.netflix.com/2013/02/rxjava-netflix-api.html">Netflix TechBlog post</a> where RxJava was introduced.
 
@@ -22,9 +22,9 @@ Example for Maven:
 
 ```xml
 <dependency>
-    <groupId>io.reactivex</groupId>
+    <groupId>io.reactivex.rxjava2</groupId>
     <artifactId>rxswing</artifactId>
-    <version>0.24.0</version>
+    <version>xxx</version>
 </dependency>
 ```
 and for Ivy:
